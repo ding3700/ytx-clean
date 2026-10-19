@@ -1,1 +1,44 @@
+name: Build YTXClean.dylib
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: macos-13
+
+    steps:
+      - name: 检出代码
+        uses: actions/checkout@v4
+
+      - name: 安装依赖
+        run: brew install ldid xz
+
+      - name: 安装 Theos
+        run: |
+          git clone --recursive https://github.com/theos/theos.git "$HOME/theos"
+          echo "THEOS=$HOME/theos" >> $GITHUB_ENV
+          echo "$HOME/theos/bin" >> $GITHUB_PATH
+
+      - name: 链接 iPhoneOS SDK
+        run: |
+          mkdir -p "$THEOS/sdks"
+          SDK=$(xcrun --sdk iphoneos --show-sdk-path)
+          echo "使用 SDK: $SDK"
+          ln -sf "$SDK" "$THEOS/sdks/iPhoneOS.sdk"
+
+      - name: 编译
+        run: make
+
+      - name: 校验产物
+        run: |
+          ls -la .theos/obj/*.dylib
+          file .theos/obj/YTXClean.dylib
+          otool -L .theos/obj/YTXClean.dylib
+
+      - name: 上传 dylib
+        uses: actions/upload-artifact@v4
+        with:
+          name: YTXClean
+          path: .theos/obj/YTXClean.dylib
 
