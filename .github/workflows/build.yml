@@ -11,38 +11,64 @@ jobs:
       - name: 检出代码
         uses: actions/checkout@v4
 
-      - name: 查看环境
+      - name: 环境自检
         run: |
-          xcodebuild -version || true
+          echo "--- 仓库文件 ---"
+          ls -la
+          echo "--- Xcode / SDK ---"
           xcrun --sdk iphoneos --show-sdk-path
+          clang --version
 
-      - name: 安装依赖
-        run: brew install ldid xz
-
-      - name: 安装 Theos
+      - name: 安装签名工具
         run: |
-          git clone --recursive https://github.com/theos/theos.git "$HOME/theos"
-          echo "THEOS=$HOME/theos" >> $GITHUB_ENV
-          echo "$HOME/theos/bin" >> $GITHUB_PATH
+          brew install ldid 2>/dev/null || true
+          which ldid || echo "ldid 不可用，将改用 codesign"
 
-      - name: 链接 iPhoneOS SDK
+      # 关键：不用 theos，直接用 Xcode 自带 clang 编译，最稳
+      - name: 编译 dylib（不用 theos）
         run: |
-          mkdir -p "$THEOS/sdks"
           SDK=$(xcrun --sdk iphoneos --show-sdk-path)
-          ln -sf "$SDK" "$THEOS/sdks/iPhoneOS.sdk"
-          ls -la "$THEOS/sdks/"
+          echo "SDK = $SDK"
+          xcrun --sdk iphoneos clang \
+            -arch arm64 \
+            -dynamiclib \
+            -fobjc-arc \
+            -Wno-error \
+            -Wno-deprecated-declarations \
+            -Wno-unused-variable \
+            -miphoneos-version-min=12.0 \
+            -isysroot "$SDK" \
+            -framework UIKit \
+            -framework Foundation \
+            -framework CoreMotion \
+            -framework CoreFoundation \
+            -install_name @executable_path/Frameworks/YTXClean.dylib \
+            -o YTXClean.dylib \
+            YTXClean.m
 
-      - name: 编译
-        run: make
+      - name: 签名
+        run: |
+          if command -v ldid >/dev/null 2>&1; then
+            ldid -S YTXClean.dylib
+            echo "已用 ldid 签名"
+          else
+            codesign --force --sign - YTXClean.dylib
+            echo "已用 codesign 临时签名"
+          fi
 
       - name: 校验产物
         run: |
-          ls -la .theos/obj/*.dylib
-          file .theos/obj/YTXClean.dylib
-          otool -L .theos/obj/YTXClean.dylib
+          ls -la YTXClean.dylib
+          file YTXClean.dylib
+          echo "--- 架构确认（须含 arm64）---"
+          lipo -info YTXClean.dylib 2>/dev/null || true
+          echo "--- 依赖检查（有 substrate 说明异常）---"
+          otool -L YTXClean.dylib
+          echo "--- install_name ---"
+          otool -D YTXClean.dylib
 
       - name: 上传 dylib
         uses: actions/upload-artifact@v4
         with:
           name: YTXClean
-          path: .theos/obj/YTXClean.dylib
+          path: YTXClean.dylib
