@@ -5,11 +5,16 @@ on:
 
 jobs:
   build:
-    runs-on: macos-13
+    runs-on: macos-latest
 
     steps:
       - name: 检出代码
         uses: actions/checkout@v4
+
+      - name: 查看环境
+        run: |
+          xcodebuild -version || true
+          xcrun --sdk iphoneos --show-sdk-path
 
       - name: 安装依赖
         run: brew install ldid xz
@@ -24,8 +29,8 @@ jobs:
         run: |
           mkdir -p "$THEOS/sdks"
           SDK=$(xcrun --sdk iphoneos --show-sdk-path)
-          echo "使用 SDK: $SDK"
           ln -sf "$SDK" "$THEOS/sdks/iPhoneOS.sdk"
+          ls -la "$THEOS/sdks/"
 
       - name: 编译
         run: make
@@ -41,4 +46,3 @@ jobs:
         with:
           name: YTXClean
           path: .theos/obj/YTXClean.dylib
-
