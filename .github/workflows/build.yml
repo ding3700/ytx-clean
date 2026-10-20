@@ -42,6 +42,7 @@ jobs:
             -framework Foundation \
             -framework CoreMotion \
             -framework CoreFoundation \
+            -framework CoreGraphics \
             -install_name @executable_path/Frameworks/YTXClean.dylib \
             -o YTXClean.dylib \
             YTXClean.m
