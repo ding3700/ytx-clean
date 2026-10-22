@@ -35,7 +35,7 @@
 #define YTX_LEVEL 4
 
 // 调试日志总开关。验证通过后设 0 —— 日志文件 I/O 是启动变慢的主因之一
-#define YTX_DEBUG 1
+#define YTX_DEBUG 0
 
 // 传感器屏蔽窗口（秒）
 static const NSTimeInterval kSensorBlockSeconds = 15.0;
